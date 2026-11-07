@@ -1,0 +1,13 @@
+form: app
+environments:
+  - name: prod
+    versions:
+      app: latest
+      chart: 0.1.72
+mothership_app:
+  default:
+    containerPort: 80
+  overrides:
+    prod:
+      hosts:
+        - frogballparty.com

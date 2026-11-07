@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frog Dance Party</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root { --beat: 0.5s; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Space Mono', monospace;
+    background: #0b0f1a;
+    color: #fff;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  header { text-align: center; padding: 18px 12px 6px; z-index: 5; }
+  h1 {
+    font-family: 'Bungee', cursive;
+    font-size: clamp(28px, 6vw, 64px);
+    letter-spacing: 2px;
+    background: linear-gradient(90deg,#7CFF4F,#FFE14D,#4DD8FF,#FF5FD2,#7CFF4F);
+    background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shimmer 4s linear infinite;
+  }
+  .party h1 { animation: shimmer 1.2s linear infinite; }
+  @keyframes shimmer { to { background-position: 300% 0; } }
+  .sub { opacity: .7; font-size: 13px; margin-top: 4px; }
+
+  .controls {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    padding: 10px; z-index: 5;
+  }
+  button, label.btn {
+    font-family: 'Bungee', cursive; font-size: 15px;
+    border: 3px solid #fff; background: #7CFF4F; color: #0b0f1a;
+    padding: 10px 18px; border-radius: 999px; cursor: pointer;
+    box-shadow: 0 4px 0 #2a8a12; transition: transform .08s;
+  }
+  button:active, label.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #2a8a12; }
+  label.btn { background: #FFE14D; box-shadow: 0 4px 0 #a58a10; }
+  button.ghost { background: transparent; color: #fff; box-shadow: none; }
+  input[type=file] { display: none; }
+  .now { text-align:center; font-size: 12px; opacity:.75; min-height: 18px; z-index:5; }
+
+  /* Stage */
+  .stage { position: relative; flex: 1; overflow: hidden; }
+  .lights { position: absolute; inset: 0; pointer-events: none; }
+  .beam {
+    position: absolute; top: -10%; width: 22vw; height: 120%;
+    background: linear-gradient(to bottom, rgba(255,255,255,.18), transparent 80%);
+    clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%);
+    transform-origin: top center; opacity: .0; transition: opacity .6s;
+    mix-blend-mode: screen;
+  }
+  .party .beam { opacity: 1; }
+  .beam.b1 { left: 5%;  background: linear-gradient(to bottom, rgba(124,255,79,.35), transparent 80%); animation: sweep 3s ease-in-out infinite alternate; }
+  .beam.b2 { left: 39%; background: linear-gradient(to bottom, rgba(255,95,210,.35), transparent 80%); animation: sweep 2.4s ease-in-out infinite alternate-reverse; }
+  .beam.b3 { left: 73%; background: linear-gradient(to bottom, rgba(77,216,255,.35), transparent 80%); animation: sweep 3.6s ease-in-out infinite alternate; }
+  @keyframes sweep { from { transform: rotate(-25deg); } to { transform: rotate(25deg); } }
+
+  .ball {
+    position: absolute; top: 8px; left: 50%; width: 70px; height: 70px; margin-left: -35px;
+    border-radius: 50%;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 2px, transparent 2px 10px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.25) 0 2px, transparent 2px 10px),
+      radial-gradient(circle at 35% 30%, #fff, #aab 45%, #556 100%);
+    box-shadow: 0 0 30px rgba(255,255,255,.25);
+    animation: spin 4s linear infinite;
+  }
+  .ball::before { content:''; position:absolute; left:50%; top:-20px; width:2px; height:20px; background:#888; }
+  @keyframes spin { to { filter: hue-rotate(360deg); } }
+
+  .floor {
+    position: absolute; left: -40%; right: -40%; bottom: 0; height: 95%;
+    display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(3, 1fr);
+    perspective: 600px;
+    transform: perspective(900px) rotateX(58deg); transform-origin: bottom;
+  }
+  .tile { background: #2f8a2f; border-left: 3px solid rgba(255,255,255,.75); transition: filter .15s; }
+  .tile.alt { background: #3a9a37; }
+  .tile.on { filter: brightness(1.25) saturate(1.2); }
+  .stage { background: linear-gradient(#0a1030 0%, #1a2350 45%, #2f8a2f 46%); }
+  .stands {
+    position: absolute; left: 0; right: 0; top: 0; height: 46%;
+    display: flex; flex-wrap: wrap; align-content: flex-end; justify-content: center; gap: 3px 4px;
+    padding: 70px 2% 6px; overflow: hidden;
+    background: repeating-linear-gradient(#2a2f45 0 14px, #1e2236 14px 18px);
+    border-bottom: 6px solid #e8e8e8;
+  }
+  .fan { width: 9px; height: 11px; border-radius: 50% 50% 2px 2px; background: var(--c); opacity: .9; }
+  .party .fan { animation: cheer var(--beat) ease-in-out infinite; animation-delay: var(--d); }
+  @keyframes cheer { 50% { transform: translateY(-5px); } }
+  .flash { position:absolute; width: 8px; height: 8px; border-radius:50%; background:#fff; box-shadow: 0 0 18px 8px #fff; animation: pop .25s ease-out forwards; z-index:2; }
+  @keyframes pop { to { opacity: 0; transform: scale(2); } }
+  .tower { position: absolute; top: 6px; width: 120px; height: 46px; background: #333; border: 3px solid #555; border-radius: 4px;
+    display: grid; grid-template-columns: repeat(6,1fr); gap: 4px; padding: 5px; z-index: 2; }
+  .tower i { display: contents; }
+  .tower::before { content:''; position:absolute; inset: 5px;
+    background: radial-gradient(circle, #fffbe0 0 5px, transparent 6px) 0 0/ 18px 18px; filter: drop-shadow(0 0 6px #fff7b0); }
+  .t-left { left: 3%; } .t-right { right: 3%; }
+  .beam { background: linear-gradient(to bottom, rgba(255,250,210,.22), transparent 80%) !important; }
+  .party .beam { opacity: 1; }
+  .beam { opacity: .5; }
+
+  .passer { position: absolute; bottom: 44%; width: clamp(54px, 7vw, 90px); z-index: 3; }
+  .p-left { left: 14%; } .p-right { right: 14%; transform: scaleX(-1); }
+  .passer .frog { animation: idle 1.6s ease-in-out infinite !important; }
+  .passer .arm-l, .passer .arm-r, .passer .leg-l, .passer .leg-r { animation: none !important; transition: transform .18s; }
+  .passer.throw .arm-r { transform: rotate(-130deg); }
+  .passer.catch .arm-r { transform: rotate(-80deg); }
+  .passer.catch .arm-l { transform: rotate(80deg); }
+  .football { position: absolute; width: clamp(22px, 2.6vw, 34px); z-index: 4; left: 0; top: 0; pointer-events: none; will-change: transform; }
+
+  .pond {
+    position: absolute; left: 0; right: 0; bottom: 6%;
+    display: flex; justify-content: center; align-items: flex-end;
+    gap: clamp(4px, 2vw, 30px); flex-wrap: nowrap; padding: 0 10px;
+  }
+  .pond.back { bottom: 25%; transform: scale(.68); transform-origin: bottom center; filter: brightness(.82); }
+  .m-shuffle .frog { }
+  .party .m-shuffle .frog { animation: shuffle calc(var(--beat) * 2) ease-in-out infinite; }
+  @keyframes shuffle { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-18%) scaleY(.92); } 50% { transform: translateX(0) translateY(-12%); } 75% { transform: translateX(18%) scaleY(.92); } }
+  .party .m-headbang .frog { animation: headbang calc(var(--beat) / 2) ease-in-out infinite; }
+  @keyframes headbang { 0%,100% { transform: rotate(0) scaleY(1); } 50% { transform: rotate(8deg) scaleY(.9) translateY(4%); } }
+  .frog-wrap { position: relative; width: clamp(80px, 14vw, 170px); display: flex; flex-direction: column; align-items: center; }
+  .pad {
+    width: 110%; height: 22px; margin-top: -10px; border-radius: 50%;
+    background: radial-gradient(ellipse at center, #2f8f3a, #1b5e24);
+    box-shadow: 0 6px 18px rgba(0,0,0,.5);
+    position: relative;
+  }
+  .pad::after { content:''; position:absolute; left: 48%; top: 0; width: 18%; height: 50%; background:#0b0f1a; clip-path: polygon(0 0, 100% 0, 50% 100%); opacity:.6; }
+  .frog { width: 100%; overflow: visible; transform-origin: 50% 100%; }
+
+  /* Idle */
+  .frog { animation: idle 2.2s ease-in-out infinite; }
+  @keyframes idle { 50% { transform: scaleY(.96) scaleX(1.03); } }
+
+  /* Dance moves (driven by --beat) */
+  .party .m-bounce .frog { animation: bounce var(--beat) ease-in-out infinite; }
+  .party .m-sway   .frog { animation: sway calc(var(--beat) * 2) ease-in-out infinite; }
+  .party .m-spin   .frog { animation: spinhop calc(var(--beat) * 4) ease-in-out infinite; }
+  .party .m-wobble .frog { animation: wobble var(--beat) ease-in-out infinite; }
+  .party .m-leap   .frog { animation: leap calc(var(--beat) * 2) cubic-bezier(.3,.1,.3,1) infinite; }
+  .party .m-squish .frog { animation: squish var(--beat) ease-in-out infinite; }
+
+  @keyframes bounce { 0%,100% { transform: translateY(0) scaleY(1); } 15% { transform: translateY(0) scaleY(.85) scaleX(1.1); } 50% { transform: translateY(-35%) scaleY(1.05); } 85% { transform: translateY(0) scaleY(.9) scaleX(1.06); } }
+  @keyframes sway { 0%,100% { transform: rotate(-14deg) translateX(-8%); } 50% { transform: rotate(14deg) translateX(8%); } }
+  @keyframes spinhop { 0%,60%,100% { transform: translateY(0) rotate(0); } 75% { transform: translateY(-45%) rotate(180deg); } 90% { transform: translateY(-10%) rotate(360deg); } }
+  @keyframes wobble { 0%,100% { transform: skewX(0) scaleY(1); } 25% { transform: skewX(12deg) scaleY(.92); } 75% { transform: skewX(-12deg) scaleY(.92); } }
+  @keyframes leap { 0%,100% { transform: translate(0,0) scale(1); } 10% { transform: scaleY(.8) scaleX(1.15); } 40% { transform: translate(15%,-60%) rotate(15deg); } 70% { transform: translate(-15%,-20%) rotate(-10deg); } 90% { transform: scaleY(.85) scaleX(1.1); } }
+  @keyframes squish { 0%,100% { transform: scale(1,1); } 50% { transform: scale(1.25,.75); } }
+
+  /* Limbs */
+  .arm-l, .arm-r, .leg-l, .leg-r { transform-box: fill-box; }
+  .arm-l { transform-origin: 100% 0%; }
+  .arm-r { transform-origin: 0% 0%; }
+  .leg-l { transform-origin: 100% 0%; }
+  .leg-r { transform-origin: 0% 0%; }
+  .party .arm-l { animation: armL var(--beat) ease-in-out infinite; }
+  .party .arm-r { animation: armR var(--beat) ease-in-out infinite; }
+  .party .leg-l { animation: legL calc(var(--beat) * 2) ease-in-out infinite; }
+  .party .leg-r { animation: legR calc(var(--beat) * 2) ease-in-out infinite; }
+  @keyframes armL { 50% { transform: rotate(70deg); } }
+  @keyframes armR { 50% { transform: rotate(-70deg); } }
+  @keyframes legL { 25% { transform: rotate(35deg); } }
+  @keyframes legR { 75% { transform: rotate(-35deg); } }
+
+  .eye-pupil { transition: transform .1s; }
+  .blink .lid { transform: scaleY(1); }
+  .lid { transform: scaleY(0); transform-box: fill-box; transform-origin: top; transition: transform .08s; }
+
+  /* Beat pulse */
+  .pulse .frog-wrap .frog { filter: drop-shadow(0 0 14px var(--glow)); }
+  .note {
+    position: absolute; font-size: 26px; pointer-events: none;
+    animation: floatUp 1.6s ease-out forwards; z-index: 4;
+  }
+  @keyframes floatUp { from { opacity: 1; transform: translateY(0) rotate(0); } to { opacity: 0; transform: translateY(-160px) rotate(var(--r)); } }
+
+  .bubbles span {
+    position: absolute; bottom: -20px; border-radius: 50%;
+    background: rgba(124,255,79,.12); border: 1px solid rgba(124,255,79,.3);
+    animation: rise linear infinite;
+  }
+  @keyframes rise { to { transform: translateY(-110vh); } }
+
+  /* The Wave */
+  .stage.waving .frog-wrap .frog { animation: waveup .8s ease-out var(--del) both !important; }
+  .stage.waving .frog-wrap .arm-l { animation: armwaveL .8s ease-out var(--del) both !important; }
+  .stage.waving .frog-wrap .arm-r { animation: armwaveR .8s ease-out var(--del) both !important; }
+  .stage.waving .fan { animation: fanwave .7s ease-out var(--del) both !important; }
+  @keyframes waveup { 0%,100% { transform: translateY(0) scale(1); } 15% { transform: scaleY(.85) scaleX(1.08); } 45%,60% { transform: translateY(-40%) scaleY(1.08); } }
+  @keyframes armwaveL { 0%,100% { transform: rotate(0); } 35%,65% { transform: rotate(135deg); } }
+  @keyframes armwaveR { 0%,100% { transform: rotate(0); } 35%,65% { transform: rotate(-135deg); } }
+  @keyframes fanwave { 0%,100% { transform: translateY(0); } 40%,60% { transform: translateY(-14px) scaleY(1.4); filter: brightness(1.6); } }
+  footer { text-align:center; font-size: 11px; opacity:.45; padding: 6px; z-index:5; }
+  @media (max-width: 600px) { .frog-wrap:nth-child(n+5) { display: none; } .pond.back { bottom: 24%; } .tower { width: 70px; height: 30px; } .p-left { left: 4%; } .p-right { right: 4%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>FROG DANCE PARTY</h1>
+  <div class="sub">twelve frogs. one stadium. one funky beat.</div>
+</header>
+
+<div class="controls">
+  <button id="play">▶ Start the Party</button>
+  <label class="btn" for="file">🎵 Play your own song</label>
+  <input id="file" type="file" accept="audio/*">
+  <button id="wave" style="background:#4DD8FF;box-shadow:0 4px 0 #1a7fa0">🌊 Do the Wave</button>
+  <button id="tempo" class="ghost">Tempo: 120</button>
+</div>
+<div class="now" id="now">Built-in beat: "Lily Pad Funk" (original)</div>
+
+<div class="stage" id="stage">
+  <div class="bubbles" id="bubbles"></div>
+  <div class="lights"><div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div></div>
+  <div class="stands" id="stands"></div>
+  <div class="tower t-left"><i></i></div><div class="tower t-right"><i></i></div>
+  <div class="floor" id="floor"></div>
+  <div class="passer p-left" id="passerL"></div>
+  <div class="passer p-right" id="passerR"></div>
+  <div class="football" id="football"><svg viewBox="0 0 40 24"><ellipse cx="20" cy="12" rx="19" ry="11" fill="#8B4513" stroke="#5a2d0c" stroke-width="1.5"/><path d="M6 6 Q4 12 6 18 M34 6 Q36 12 34 18" stroke="#fff" stroke-width="1.5" fill="none"/><line x1="13" y1="12" x2="27" y2="12" stroke="#fff" stroke-width="1.5"/><g stroke="#fff" stroke-width="1.2"><line x1="15" y1="9.5" x2="15" y2="14.5"/><line x1="18.3" y1="9.5" x2="18.3" y2="14.5"/><line x1="21.6" y1="9.5" x2="21.6" y2="14.5"/><line x1="25" y1="9.5" x2="25" y2="14.5"/></g></svg></div>
+  <div class="pond back" id="pondBack"></div>
+  <div class="pond" id="pond"></div>
+</div>
+<footer>Load the theme song (or anything else) from your own computer with “Play your own song”, and the frogs will dance to it.</footer>
+
+<audio id="audio" crossorigin="anonymous"></audio>
+
+<script>
+// ---------- Frogs ----------
+const FROGS = [
+  { body:'#5CD65C', belly:'#C9F7A6', move:'m-bounce', glow:'#7CFF4F', hat:'tophat' },
+  { body:'#3FB8AF', belly:'#BFF3EE', move:'m-sway',   glow:'#4DD8FF', hat:'glasses' },
+  { body:'#F2C230', belly:'#FFF1B0', move:'m-spin',   glow:'#FFE14D', hat:'crown' },
+  { body:'#E85DB8', belly:'#FFD0EF', move:'m-wobble', glow:'#FF5FD2', hat:'bowtie' },
+  { body:'#7A6BFF', belly:'#D9D4FF', move:'m-leap',   glow:'#9E91FF', hat:'headband' },
+  { body:'#FF8A3D', belly:'#FFDCC2', move:'m-squish', glow:'#FF9E5C', hat:'none' },
+  { body:'#2E9E5B', belly:'#B8F0CF', move:'m-shuffle', glow:'#3DFF9A', hat:'cowboy' },
+  { body:'#4D7CFF', belly:'#CFDBFF', move:'m-headbang', glow:'#6F96FF', hat:'headphones' },
+  { body:'#B5E61D', belly:'#EEFFC0', move:'m-bounce', glow:'#D4FF4D', hat:'party' },
+  { body:'#E94B4B', belly:'#FFD1D1', move:'m-spin', glow:'#FF6B6B', hat:'beanie' },
+  { body:'#1FC7A6', belly:'#C2FFF2', move:'m-sway', glow:'#4DFFE0', hat:'flower' },
+  { body:'#A86BFF', belly:'#E8D9FF', move:'m-squish', glow:'#C49BFF', hat:'shades' },
+];
+
+function accessory(type){
+  switch(type){
+    case 'tophat': return `<rect x="38" y="2" width="44" height="30" rx="3" fill="#111"/><rect x="28" y="28" width="64" height="8" rx="3" fill="#111"/><rect x="38" y="22" width="44" height="6" fill="#c33"/>`;
+    case 'glasses': return `<rect x="22" y="38" width="32" height="20" rx="6" fill="#111"/><rect x="66" y="38" width="32" height="20" rx="6" fill="#111"/><rect x="52" y="44" width="16" height="4" fill="#111"/><rect x="26" y="41" width="10" height="5" rx="2" fill="#fff" opacity=".5"/><rect x="70" y="41" width="10" height="5" rx="2" fill="#fff" opacity=".5"/>`;
+    case 'crown': return `<polygon points="36,34 40,10 50,24 60,6 70,24 80,10 84,34" fill="#FFD700" stroke="#b8860b" stroke-width="2"/><circle cx="60" cy="22" r="3" fill="#e33"/>`;
+    case 'bowtie': return `<polygon points="44,92 60,99 44,106" fill="#111"/><polygon points="76,92 60,99 76,106" fill="#111"/><circle cx="60" cy="99" r="4" fill="#333"/>`;
+    case 'headband': return `<rect x="22" y="30" width="76" height="9" rx="4" fill="#fff"/><rect x="22" y="32" width="76" height="3" fill="#e33"/>`;
+    case 'cowboy': return `<ellipse cx="60" cy="34" rx="46" ry="7" fill="#8B5A2B"/><path d="M38 34 Q38 10 60 12 Q82 10 82 34 Z" fill="#A0522D"/><rect x="38" y="26" width="44" height="5" fill="#5a3315"/>`;
+    case 'headphones': return `<path d="M20 60 Q20 18 60 18 Q100 18 100 60" stroke="#222" stroke-width="7" fill="none"/><rect x="12" y="52" width="16" height="24" rx="6" fill="#e33"/><rect x="92" y="52" width="16" height="24" rx="6" fill="#e33"/>`;
+    case 'party': return `<polygon points="60,0 46,36 74,36" fill="#FF5FD2"/><polygon points="53,18 67,18 70,26 50,26" fill="#FFE14D"/><circle cx="60" cy="2" r="5" fill="#4DD8FF"/>`;
+    case 'beanie': return `<path d="M24 40 Q24 8 60 8 Q96 8 96 40 Z" fill="#2a2a6a"/><rect x="22" y="34" width="76" height="9" rx="4" fill="#4444aa"/><circle cx="60" cy="6" r="7" fill="#fff"/>`;
+    case 'flower': return `<g transform="translate(88,30)"><circle r="6" cx="0" cy="-8" fill="#FF8AD8"/><circle r="6" cx="8" cy="0" fill="#FF8AD8"/><circle r="6" cx="0" cy="8" fill="#FF8AD8"/><circle r="6" cx="-8" cy="0" fill="#FF8AD8"/><circle r="5" fill="#FFE14D"/></g>`;
+    case 'shades': return `<polygon points="20,40 56,40 52,56 26,56" fill="#FF5FD2"/><polygon points="64,40 100,40 94,56 68,56" fill="#FF5FD2"/><rect x="54" y="42" width="12" height="4" fill="#FF5FD2"/>`;
+    case 'helmet': return `<path d="M16 64 Q14 20 60 18 Q106 20 104 64 L96 64 Q94 34 60 32 Q26 34 24 64 Z" fill="var(--team)"/><rect x="56" y="18" width="8" height="16" fill="#fff"/><path d="M24 64 L36 84 M96 64 L84 84 M30 74 L90 74" stroke="#ccc" stroke-width="3" fill="none"/>`;
+    default: return '';
+  }
+}
+
+function frogSVG(f){
+  const eyes = (f.hat === 'glasses' || f.hat === 'shades') ? '' : `
+    <g class="eyes">
+      <circle cx="38" cy="44" r="14" fill="#fff"/><circle cx="82" cy="44" r="14" fill="#fff"/>
+      <circle class="eye-pupil" cx="40" cy="46" r="6" fill="#111"/><circle class="eye-pupil" cx="80" cy="46" r="6" fill="#111"/>
+      <rect class="lid" x="24" y="30" width="28" height="28" rx="14" fill="${f.body}"/>
+      <rect class="lid" x="68" y="30" width="28" height="28" rx="14" fill="${f.body}"/>
+    </g>`;
+  return `
+  <svg class="frog" viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg">
+    <!-- legs -->
+    <path class="leg-l" d="M38 118 Q18 128 12 146 L34 146 Q36 134 46 128 Z" fill="${f.body}"/>
+    <path class="leg-r" d="M82 118 Q102 128 108 146 L86 146 Q84 134 74 128 Z" fill="${f.body}"/>
+    <ellipse cx="18" cy="146" rx="12" ry="4" fill="${f.body}"/><ellipse cx="102" cy="146" rx="12" ry="4" fill="${f.body}"/>
+    <!-- body -->
+    <ellipse cx="60" cy="108" rx="38" ry="34" fill="${f.body}"/>
+    <ellipse cx="60" cy="114" rx="25" ry="22" fill="${f.belly}"/>
+    <!-- arms -->
+    <path class="arm-l" d="M28 98 Q10 104 6 118 Q10 122 14 118 Q18 108 32 106 Z" fill="${f.body}"/>
+    <path class="arm-r" d="M92 98 Q110 104 114 118 Q110 122 106 118 Q102 108 88 106 Z" fill="${f.body}"/>
+    <!-- head -->
+    <ellipse cx="60" cy="66" rx="42" ry="30" fill="${f.body}"/>
+    ${eyes}
+    <circle cx="30" cy="72" r="5" fill="#ff7aa8" opacity=".55"/><circle cx="90" cy="72" r="5" fill="#ff7aa8" opacity=".55"/>
+    <path d="M40 76 Q60 94 80 76" stroke="#1a3a1a" stroke-width="3.5" fill="#7a1f2b" stroke-linecap="round"/>
+    <path d="M52 84 Q60 90 68 84" fill="#ff6b81"/>
+    ${accessory(f.hat)}
+  </svg>`;
+}
+
+const pond = document.getElementById('pond');
+const pondBack = document.getElementById('pondBack');
+FROGS.forEach((f,i) => {
+  const w = document.createElement('div');
+  w.className = 'frog-wrap ' + f.move;
+  w.style.setProperty('--glow', f.glow);
+  w.style.animationDelay = (i*0.07)+'s';
+  w.innerHTML = frogSVG(f) + '<div class="pad"></div>';
+  w.querySelector('.frog').style.animationDelay = (i % 2 ? '-0.25s' : '0s');
+  (i < 6 ? pond : pondBack).appendChild(w);
+});
+
+// Blinking
+setInterval(() => {
+  const ws = document.querySelectorAll('.frog-wrap');
+  const w = ws[Math.floor(Math.random()*ws.length)];
+  w.classList.add('blink'); setTimeout(() => w.classList.remove('blink'), 140);
+}, 700);
+
+// Eyes follow pointer
+document.addEventListener('pointermove', e => {
+  document.querySelectorAll('.frog').forEach(svg => {
+    const r = svg.getBoundingClientRect();
+    const dx = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width/2)) / 300));
+    const dy = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height*0.3)) / 300));
+    svg.querySelectorAll('.eye-pupil').forEach(p => p.style.transform = `translate(${dx*5}px, ${dy*5}px)`);
+  });
+});
+
+// Floor tiles
+const floor = document.getElementById('floor');
+const COLORS = ['#7CFF4F','#FFE14D','#4DD8FF','#FF5FD2','#9E91FF','#FF9E5C'];
+for (let i=0;i<30;i++){ const t=document.createElement('div'); t.className='tile'; floor.appendChild(t); }
+const tiles = [...floor.children];
+tiles.forEach((t,i) => { if ((i % 10) % 2) t.classList.add('alt'); });
+
+// Crowd
+const stands = document.getElementById('stands');
+const FAN_COLORS = ['#e33','#fff','#f5c542','#4DD8FF','#7CFF4F','#FF5FD2','#ff9e5c','#333'];
+for (let i=0;i<900;i++){ const f=document.createElement('span'); f.className='fan';
+  f.style.setProperty('--c', FAN_COLORS[Math.floor(Math.random()*FAN_COLORS.length)]);
+  f.style.setProperty('--d', (-Math.random()*0.5)+'s'); stands.appendChild(f); }
+setInterval(() => { if (Math.random() < .6){ const fl=document.createElement('div'); fl.className='flash';
+  fl.style.left=(Math.random()*96)+'%'; fl.style.top=(15+Math.random()*28)+'%'; stage.appendChild(fl); setTimeout(()=>fl.remove(),300);} }, 400);
+
+// Passers + football
+const passerL = document.getElementById('passerL'), passerR = document.getElementById('passerR');
+passerL.innerHTML = frogSVG({ body:'#4CAF50', belly:'#C8F5C0', hat:'helmet' });
+passerR.innerHTML = frogSVG({ body:'#3E8E41', belly:'#C8F5C0', hat:'helmet' });
+passerL.style.setProperty('--team', '#d62828'); passerR.style.setProperty('--team', '#1d4ed8');
+const ball = document.getElementById('football');
+let fromLeft = true;
+function hand(el, isLeft){
+  const r = el.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+  return { x: r.left - sr.left + r.width*(isLeft ? .92 : .08), y: r.top - sr.top + r.height*.45 };
+}
+function throwBall(){
+  const thrower = fromLeft ? passerL : passerR, catcher = fromLeft ? passerR : passerL;
+  thrower.classList.add('throw');
+  setTimeout(() => {
+    thrower.classList.remove('throw');
+    const a = hand(thrower, fromLeft), b = hand(catcher, !fromLeft);
+    const dur = 1100 + Math.random()*400, peak = 90 + Math.random()*70, t0 = performance.now();
+    let caught = false;
+    const fly = now => {
+      const t = Math.min(1, (now - t0)/dur);
+      const x = a.x + (b.x - a.x)*t, y = a.y + (b.y - a.y)*t - peak*4*t*(1-t);
+      const ang = Math.atan2((b.y-a.y) - peak*4*(1-2*t), b.x-a.x) * 180/Math.PI;
+      ball.style.transform = `translate(${x - ball.offsetWidth/2}px, ${y - ball.offsetHeight/2}px) rotate(${ang}deg)`;
+      if (t > .75 && !caught){ caught = true; catcher.classList.add('catch'); }
+      if (t < 1) requestAnimationFrame(fly);
+      else { setTimeout(() => { catcher.classList.remove('catch'); fromLeft = !fromLeft; setTimeout(throwBall, 350); }, 300); }
+    };
+    requestAnimationFrame(fly);
+  }, 260);
+}
+setTimeout(throwBall, 400);
+
+// Bubbles
+const bub = document.getElementById('bubbles');
+for (let i=0;i<18;i++){
+  const s=document.createElement('span'); const size=6+Math.random()*22;
+  s.style.cssText=`left:${Math.random()*100}%;width:${size}px;height:${size}px;animation-duration:${8+Math.random()*12}s;animation-delay:-${Math.random()*20}s`;
+  bub.appendChild(s);
+}
+
+const stage = document.getElementById('stage');
+let waving = false, beatCount = 0;
+const SWEEP = 1.8; // seconds for the wave to cross the stadium
+function doWave(){
+  if (waving) return; waving = true;
+  const sr = stage.getBoundingClientRect();
+  const delayFor = el => { const r = el.getBoundingClientRect(); return (((r.left + r.width/2) - sr.left) / sr.width * SWEEP).toFixed(3) + 's'; };
+  document.querySelectorAll('.frog-wrap').forEach(w => w.style.setProperty('--del', delayFor(w)));
+  const fans = stands.children; const sw = stands.getBoundingClientRect();
+  for (const f of fans) f.style.setProperty('--del', ((f.offsetLeft / sw.width) * SWEEP).toFixed(3) + 's');
+  stage.classList.remove('waving'); void stage.offsetWidth; stage.classList.add('waving');
+  setTimeout(() => { stage.classList.remove('waving'); waving = false; }, (SWEEP + 0.9) * 1000);
+}
+document.getElementById('wave').addEventListener('click', doWave);
+
+function onBeat(strong){
+  if (playing && ++beatCount % 32 === 0) doWave();
+  tiles.forEach(t => {
+    if (Math.random() < (strong ? .35 : .18)) { t.style.setProperty('--c', COLORS[Math.floor(Math.random()*COLORS.length)]); t.classList.add('on'); }
+    else t.classList.remove('on');
+  });
+  document.body.classList.add('pulse'); setTimeout(()=>document.body.classList.remove('pulse'), 120);
+  if (strong) spawnNote();
+}
+function spawnNote(){
+  const n = document.createElement('div'); n.className='note';
+  n.textContent = ['♪','♫','♬','🎵'][Math.floor(Math.random()*4)];
+  n.style.left = (10+Math.random()*80)+'%'; n.style.bottom = (25+Math.random()*20)+'%';
+  n.style.color = COLORS[Math.floor(Math.random()*COLORS.length)];
+  n.style.setProperty('--r', (Math.random()*80-40)+'deg');
+  stage.appendChild(n); setTimeout(()=>n.remove(), 1700);
+}
+
+// ---------- Audio ----------
+let ctx, master, playing = false, mode = 'synth', bpm = 120, timer, nextTime = 0, step = 0;
+let analyser, mediaSrc, beatRAF;
+const audioEl = document.getElementById('audio');
+const playBtn = document.getElementById('play');
+const nowEl = document.getElementById('now');
+const tempoBtn = document.getElementById('tempo');
+
+function setBeatVar(){ document.documentElement.style.setProperty('--beat', (60/bpm)+'s'); }
+setBeatVar();
+
+function ensureCtx(){
+  if (!ctx){
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = .55; master.connect(ctx.destination);
+  }
+  if (ctx.state === 'suspended') ctx.resume();
+}
+
+// Synth voices
+function kick(t){ const o=ctx.createOscillator(), g=ctx.createGain(); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(40,t+.15); g.gain.setValueAtTime(1,t); g.gain.exponentialRampToValueAtTime(.001,t+.3); o.connect(g).connect(master); o.start(t); o.stop(t+.3); }
+let noiseBuf;
+function noise(){ if(!noiseBuf){ noiseBuf=ctx.createBuffer(1,ctx.sampleRate*.5,ctx.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; } const s=ctx.createBufferSource(); s.buffer=noiseBuf; return s; }
+function snare(t){ const n=noise(), f=ctx.createBiquadFilter(), g=ctx.createGain(); f.type='highpass'; f.frequency.value=1200; g.gain.setValueAtTime(.5,t); g.gain.exponentialRampToValueAtTime(.001,t+.18); n.connect(f).connect(g).connect(master); n.start(t); n.stop(t+.2);
+  const o=ctx.createOscillator(), og=ctx.createGain(); o.type='triangle'; o.frequency.value=190; og.gain.setValueAtTime(.3,t); og.gain.exponentialRampToValueAtTime(.001,t+.1); o.connect(og).connect(master); o.start(t); o.stop(t+.1); }
+function hat(t, open){ const n=noise(), f=ctx.createBiquadFilter(), g=ctx.createGain(); f.type='highpass'; f.frequency.value=7000; const d=open?.15:.04; g.gain.setValueAtTime(.18,t); g.gain.exponentialRampToValueAtTime(.001,t+d); n.connect(f).connect(g).connect(master); n.start(t); n.stop(t+d+.01); }
+function tone(t, freq, dur, type, vol, cutoff){ const o=ctx.createOscillator(), g=ctx.createGain(), f=ctx.createBiquadFilter(); o.type=type; o.frequency.value=freq; f.type='lowpass'; f.frequency.setValueAtTime(cutoff,t); f.frequency.exponentialRampToValueAtTime(cutoff*.3,t+dur); f.Q.value=6; g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.001,t+dur); o.connect(f).connect(g).connect(master); o.start(t); o.stop(t+dur+.02); }
+function croak(t){ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(220,t); o.frequency.linearRampToValueAtTime(140,t+.12); const lfo=ctx.createOscillator(), lg=ctx.createGain(); lfo.frequency.value=40; lg.gain.value=60; lfo.connect(lg).connect(o.frequency); g.gain.setValueAtTime(.14,t); g.gain.exponentialRampToValueAtTime(.001,t+.16); o.connect(g).connect(master); o.start(t); lfo.start(t); o.stop(t+.17); lfo.stop(t+.17); }
+
+const hz = n => 440*Math.pow(2,(n-69)/12);
+// Original 2-bar funk pattern, 16th-note grid (32 steps). null = rest.
+const BASS = [36,null,null,36, null,null,39,null, 41,null,36,null, null,43,null,41,
+              36,null,null,36, null,null,39,null, 41,null,43,null, 46,null,43,null];
+const LEAD = [null,null,72,null, 75,null,null,72, null,77,null,75, null,72,null,null,
+              null,null,72,null, 75,null,79,null, 77,null,75,null, 72,null,70,null];
+const CHORD_STEPS = [2,6,10,14,18,22,26,30];
+
+function schedule(){
+  const spb = 60/bpm/4;
+  while (nextTime < ctx.currentTime + .12){
+    const s = step % 32, t = nextTime;
+    if (s % 4 === 0) kick(t);
+    if (s === 10 || s === 27) kick(t);
+    if (s % 8 === 4) snare(t);
+    hat(t, s % 8 === 6);
+    if (BASS[s] != null) tone(t, hz(BASS[s]), spb*1.6, 'sawtooth', .32, 900);
+    if (step >= 32 && LEAD[s] != null) tone(t, hz(LEAD[s]), spb*1.4, 'square', .08, 3000);
+    if (CHORD_STEPS.includes(s)) [60,63,67].forEach(n => tone(t, hz(n), spb*.7, 'triangle', .05, 2500));
+    if (s === 31 || s === 15 && step % 64 > 32) croak(t);
+    if (s % 4 === 0) { const strong = s % 8 === 0; const d = (t - ctx.currentTime)*1000; setTimeout(()=>onBeat(strong), Math.max(0,d)); }
+    nextTime += spb; step++;
+  }
+}
+
+function startSynth(){
+  ensureCtx(); stopFile();
+  mode='synth'; nextTime = ctx.currentTime + .05; step = 0;
+  timer = setInterval(schedule, 25);
+  nowEl.textContent = 'Built-in beat: "Lily Pad Funk" (original)';
+}
+function stopSynth(){ clearInterval(timer); timer = null; }
+
+// User file playback with beat detection
+function startFile(){
+  ensureCtx(); stopSynth(); mode='file';
+  if (!mediaSrc){
+    mediaSrc = ctx.createMediaElementSource(audioEl);
+    analyser = ctx.createAnalyser(); analyser.fftSize = 1024;
+    mediaSrc.connect(analyser); analyser.connect(ctx.destination);
+  }
+  audioEl.play().catch(()=>{});
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  let avg = 0, last = 0, beats = [];
+  const loop = () => {
+    analyser.getByteFrequencyData(data);
+    let e = 0; for (let i=1;i<10;i++) e += data[i]; e /= 9;
+    avg = avg*.93 + e*.07;
+    const now = performance.now();
+    if (e > avg*1.25 && e > 90 && now - last > 280){
+      if (last) { beats.push(now-last); if (beats.length>8) beats.shift();
+        const med = [...beats].sort((a,b)=>a-b)[beats.length>>1];
+        if (med > 300 && med < 1000){ bpm = Math.round(60000/med); setBeatVar(); tempoBtn.textContent = 'Tempo: ~'+bpm; } }
+      last = now; onBeat(beats.length % 2 === 0);
+    }
+    beatRAF = requestAnimationFrame(loop);
+  };
+  cancelAnimationFrame(beatRAF); loop();
+}
+function stopFile(){ audioEl.pause(); cancelAnimationFrame(beatRAF); }
+
+function setPlaying(on){
+  playing = on;
+  document.body.classList.toggle('party', on);
+  playBtn.textContent = on ? '⏸ Pause' : '▶ Start the Party';
+}
+
+playBtn.addEventListener('click', () => {
+  if (playing){ stopSynth(); stopFile(); setPlaying(false); return; }
+  if (mode === 'file' && audioEl.src) startFile(); else startSynth();
+  setPlaying(true);
+});
+
+document.getElementById('file').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  audioEl.src = URL.createObjectURL(f);
+  nowEl.textContent = 'Now playing: ' + f.name;
+  startFile(); setPlaying(true);
+});
+audioEl.addEventListener('ended', () => setPlaying(false));
+
+const TEMPOS = [100, 120, 140, 160];
+tempoBtn.addEventListener('click', () => {
+  if (mode === 'file') return;
+  bpm = TEMPOS[(TEMPOS.indexOf(bpm)+1) % TEMPOS.length] || 120;
+  setBeatVar(); tempoBtn.textContent = 'Tempo: ' + bpm;
+});
+</script>
+</body>
+</html>
